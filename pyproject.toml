@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "center"
+version = "0.1.0"
+description = "Center delegation package"
+readme = "README (1).md"
+requires-python = ">=3.9"
+
+dependencies = []
+
+[tool.setuptools]
+packages = ["center", "specialists"]
+py-modules = [
+  "ceo",
+  "classifier",
+  "config",
+  "delegation",
+  "intake",
+  "juan_whey",
+  "richard",
+  "view_tasks",
+]

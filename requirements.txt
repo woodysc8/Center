@@ -1,0 +1,5 @@
+# Center runs on the standard library alone (sqlite3, json, uuid, pathlib) —
+# no dependencies required for the current rule-based pipeline.
+#
+# Uncomment when classifier.py's LLM path gets implemented:
+# google-generativeai
