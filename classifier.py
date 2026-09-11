@@ -26,6 +26,8 @@ _KEYWORDS = {
                "book a", "itinerary", "vacation"],
     "research": ["research", "look into", "find out", "what's the latest",
                  "compare", "news on"],
+    "gmail": ["gmail", "inbox", "my mail", "search email", "search emails",
+              "find email", "find an email", "email from", "check email"],
     "reminder": ["remind me", "don't forget", "call ", "text ", "email "],
 }
 
@@ -33,6 +35,7 @@ _OWNER_FOR_CATEGORY = {
     "finance": "richard",
     "travel": "juan_whey",
     "research": "unassigned",  # goes to the researcher once it exists
+    "gmail": "dee_gmail",
     "reminder": "sheila",
     "unsure": "unassigned",
 }
@@ -76,13 +79,13 @@ def _llm_classify(raw_input: str) -> dict:
     """
     system_prompt = """You are a task classifier for a personal AI network.
 Given a message, output ONLY a JSON object with these fields:
-- category: one of "finance", "travel", "research", "reminder", "unsure"
+- category: one of "finance", "travel", "research", "gmail", "reminder", "unsure"
 - title: a short (<80 char) summary
 - brief: 2-4 sentences a specialist AI would need to act on this, written
   in third person about Samuel
-- owner: one of "richard" (finance), "juan_whey" (travel), "sheila"
-  (reminders/small stuff), "samuel" (needs his direct input), "unassigned"
-  (research or unclear)
+- owner: one of "richard" (finance), "juan_whey" (travel), "dee_gmail"
+  (Gmail), "sheila" (reminders/small stuff), "samuel" (needs his direct
+  input), "unassigned" (research or unclear)
 - priority: one of "low", "normal", "high"
 No preamble, no markdown fences, just the JSON object."""
     raise NotImplementedError(
