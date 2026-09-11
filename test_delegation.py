@@ -29,13 +29,13 @@ class DelegationIntegrationTests(unittest.TestCase):
         )
 
         self.assertEqual(outcome["owner"], "richard")
-        self.assertEqual(outcome["status"], "in_progress")
+        self.assertEqual(outcome["status"], "done")
         self.assertIn("task_id", outcome)
         self.assertEqual(len(self.intake.list_tasks()), 1)
 
         task = self.intake.list_tasks()[0]
         self.assertEqual(task["owner"], "richard")
-        self.assertEqual(task["status"], "in_progress")
+        self.assertEqual(task["status"], "done")
 
     def test_handle_message_accepts_context_and_metadata(self):
         captured = {}
@@ -53,7 +53,7 @@ class DelegationIntegrationTests(unittest.TestCase):
         )
 
         self.assertEqual(outcome["result"], "ok")
-        self.assertEqual(outcome["status"], "in_progress")
+        self.assertEqual(outcome["status"], "done")
 
         task = self.intake.list_tasks()[0]
         self.assertEqual(captured["task"]["context"]["travel_preferences"], "window seat")
@@ -62,6 +62,33 @@ class DelegationIntegrationTests(unittest.TestCase):
         stored_metadata = json.loads(task["metadata"])
         self.assertEqual(stored_metadata["context"]["travel_preferences"], "window seat")
         self.assertEqual(stored_metadata["metadata"]["conversation_id"], "abc-123")
+
+    def test_task_is_in_progress_only_during_specialist_execution(self):
+        observed_statuses = []
+
+        def fake_specialist(task):
+            observed_statuses.append(self.intake.list_tasks()[0]["status"])
+            return {"result": "done"}
+
+        self.delegation.SPECIALISTS = {"richard": fake_specialist}
+
+        outcome = self.delegation.handle_message("Need advice on taxes")
+
+        self.assertEqual(observed_statuses, ["in_progress"])
+        self.assertEqual(outcome["status"], "done")
+        self.assertEqual(self.intake.list_tasks()[0]["status"], "done")
+
+    def test_failed_specialist_execution_is_dropped(self):
+        def failing_specialist(task):
+            raise RuntimeError("private specialist details")
+
+        self.delegation.SPECIALISTS = {"richard": failing_specialist}
+
+        outcome = self.delegation.handle_message("Need advice on taxes")
+
+        self.assertEqual(outcome["status"], "dropped")
+        self.assertEqual(outcome["error"]["code"], "specialist_error")
+        self.assertEqual(self.intake.list_tasks()[0]["status"], "dropped")
 
     def test_context_reaches_specialist_via_task_payload(self):
         captured = {}

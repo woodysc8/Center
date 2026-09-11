@@ -79,9 +79,10 @@ result
 ```
 
 Center validates the structured task, selects a specialist from the explicit
-`SPECIALISTS` registry, records the task status, and returns the specialist's
-result. Specialists implement `handle_task(task: dict) -> dict`. Center is an
-execution/delegation layer; it is not memory and does not make LLM calls.
+`SPECIALISTS` registry, records `in_progress` only during execution, then
+persists `done` or `dropped` and returns the specialist's result. Specialists
+implement `handle_task(task: dict) -> dict`. Center is an execution/delegation
+layer; it is not memory and does not make LLM calls.
 
 ## Sheila → Center Integration
 
@@ -113,8 +114,8 @@ agent yet, and no connection to Sam 2 for context yet either.
 
 ## Next real step
 
-Per the shared architecture doc, before delegating to a specialist Sheila
-(via `delegation.py`) should first pull relevant context from Sam 2 — e.g.
+As a future Sheila-side integration, before delegating to a specialist Sheila
+should first pull relevant context from Sam 2 — e.g.
 "what does Samuel need to know before this gets handled" — and pass that
 along in the brief, rather than delegating on the raw message alone. That
 requires Sam 2's `/api/query` endpoint to be reachable from wherever this

@@ -127,26 +127,28 @@ def handle_message(
     }
 
     if owner in SPECIALISTS:
-        dispatch = dispatch_task(task)
         update_status(task_id, "in_progress")
+        dispatch = dispatch_task(task)
         if not dispatch["ok"]:
+            update_status(task_id, "dropped")
             return {
                 "task_id": task_id,
                 "owner": owner,
                 "category": fields["category"],
                 "result": None,
                 "error": dispatch["error"],
-                "status": "in_progress",
+                "status": "dropped",
             }
         result = dispatch["result"]
         if isinstance(result, dict) and "result" in result:
             result = result["result"]
+        update_status(task_id, "done")
         return {
             "task_id": task_id,
             "owner": owner,
             "category": fields["category"],
             "result": result,
-            "status": "in_progress",
+            "status": "done",
         }
 
     if owner == "samuel":
@@ -185,10 +187,20 @@ def sweep_unassigned() -> list[dict]:
     for task in list_tasks(status="new"):
         owner = task["owner"]
         if owner in SPECIALISTS:
-            result = SPECIALISTS[owner](task)
             update_status(task["id"], "in_progress")
-            results.append({"task_id": task["id"], "title": task["title"],
-                             "owner": owner, "result": result["result"]})
+            dispatch = dispatch_task(task)
+            if dispatch["ok"]:
+                update_status(task["id"], "done")
+                result = dispatch["result"]
+                if isinstance(result, dict) and "result" in result:
+                    result = result["result"]
+                results.append({"task_id": task["id"], "title": task["title"],
+                                "owner": owner, "result": result})
+            else:
+                update_status(task["id"], "dropped")
+                results.append({"task_id": task["id"], "title": task["title"],
+                                "owner": owner, "result": None,
+                                "error": dispatch["error"]})
     return results
 
 
