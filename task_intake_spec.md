@@ -21,7 +21,7 @@ agent is built).
 | `brief`       | text      | 2-4 sentence handoff — what the eventual owner needs to know |
 | `priority`    | text      | `"low" \| "normal" \| "high"` |
 | `status`      | text      | `"new" \| "in_progress" \| "done" \| "dropped"` — starts `"new"` |
-| `owner`       | text      | who *should* handle it — `"richard" \| "juan_whey" \| "sheila" \| "samuel" \| "unassigned"` |
+| `owner`       | text      | who *should* handle it — `"richard" \| "juan_whey" \| "dee_gmail" \| "sheila" \| "samuel" \| "unassigned"` |
 | `deadline`    | timestamp, nullable | only if Samuel mentioned one |
 | `metadata`    | JSON, nullable | free-form — source thread id, links, etc. |
 

@@ -33,12 +33,56 @@ from typing import Optional
 
 from intake import create_task, update_status
 from classifier import classify
-from specialists import richard, juan_whey
+from specialists import dee_gmail, richard, juan_whey
 
 SPECIALISTS = {
     "richard": richard.handle_task,
     "juan_whey": juan_whey.handle_task,
+    "dee_gmail": dee_gmail.handle_task,
 }
+
+
+def _error(code: str, message: str) -> dict:
+    return {"code": code, "message": message}
+
+
+def dispatch_task(task: dict) -> dict:
+    """Validate and synchronously dispatch one structured specialist task."""
+    if not isinstance(task, dict):
+        return {
+            "ok": False,
+            "owner": None,
+            "result": None,
+            "error": _error("invalid_task", "task must be an object"),
+        }
+
+    owner = task.get("owner")
+    if not isinstance(owner, str) or not owner.strip():
+        return {
+            "ok": False,
+            "owner": owner,
+            "result": None,
+            "error": _error("invalid_task", "task owner is required"),
+        }
+    if owner not in SPECIALISTS:
+        return {
+            "ok": False,
+            "owner": owner,
+            "result": None,
+            "error": _error("unknown_specialist", f"no specialist registered for {owner!r}"),
+        }
+
+    try:
+        result = SPECIALISTS[owner](task)
+    except Exception:
+        return {
+            "ok": False,
+            "owner": owner,
+            "result": None,
+            "error": _error("specialist_error", "specialist failed while handling the task"),
+        }
+
+    return {"ok": True, "owner": owner, "result": result, "error": None}
 
 
 def handle_message(
@@ -83,13 +127,25 @@ def handle_message(
     }
 
     if owner in SPECIALISTS:
-        result = SPECIALISTS[owner](task)
+        dispatch = dispatch_task(task)
         update_status(task_id, "in_progress")
+        if not dispatch["ok"]:
+            return {
+                "task_id": task_id,
+                "owner": owner,
+                "category": fields["category"],
+                "result": None,
+                "error": dispatch["error"],
+                "status": "in_progress",
+            }
+        result = dispatch["result"]
+        if isinstance(result, dict) and "result" in result:
+            result = result["result"]
         return {
             "task_id": task_id,
             "owner": owner,
             "category": fields["category"],
-            "result": result["result"],
+            "result": result,
             "status": "in_progress",
         }
 

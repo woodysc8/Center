@@ -61,6 +61,28 @@ Run `python delegation.py` for a quick smoke test of the whole pipeline on
 some example inputs. Run `python view_tasks.py` to see what's been
 delegated so far. No dependencies beyond the standard library currently.
 
+## Specialist Contract
+
+The synchronous execution path is intentionally small and explicit:
+
+```
+Sheila
+   |
+   v
+Center
+   |
+   v
+specialist.handle_task(task)
+   |
+   v
+result
+```
+
+Center validates the structured task, selects a specialist from the explicit
+`SPECIALISTS` registry, records the task status, and returns the specialist's
+result. Specialists implement `handle_task(task: dict) -> dict`. Center is an
+execution/delegation layer; it is not memory and does not make LLM calls.
+
 ## Sheila → Center Integration
 
 Sheila retrieves relevant Sam 2 context before it decides to delegate a
