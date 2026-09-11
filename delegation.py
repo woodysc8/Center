@@ -29,6 +29,7 @@ record-keeping so there's a queryable history/dashboard of what she's
 delegated over time.
 """
 
+import re
 from typing import Optional
 
 from intake import create_task, update_status
@@ -44,6 +45,64 @@ SPECIALISTS = {
 
 def _error(code: str, message: str) -> dict:
     return {"code": code, "message": message}
+
+
+def _gmail_request_from_text(raw_input: str) -> Optional[dict]:
+    """Turn only clear, read-only Gmail search language into Dee's contract."""
+    text = raw_input.strip().lower()
+    has_mail_scope = any(term in text for term in ("gmail", "inbox", "mail", "email"))
+    has_search_intent = (
+        any(term in text for term in ("search", "find", "look through"))
+        or ("check" in text and has_mail_scope)
+        or "email from" in text
+    )
+    if not has_mail_scope or not has_search_intent:
+        return None
+
+    account = "school" if re.search(r"\bschool\b", text) else "personal"
+    if re.search(r"\b(?:inbox|check my inbox)\b", text):
+        query = "in:inbox"
+    else:
+        query = "in:anywhere"
+
+    last_days = re.search(r"\blast\s+(\d+)\s+days?\b", text)
+    if last_days:
+        query = f"in:anywhere newer_than:{last_days.group(1)}d"
+    else:
+        sender = re.search(r"\b(?:emails?\s+)?from\s+([\w.+-]+)\b", text)
+        if sender:
+            query = f"{query} from:{sender.group(1)}"
+        else:
+            search_terms = re.search(
+                r"\b(?:gmail|inbox|mail|emails?)\b\s+(?:for\s+)?(.+)$", text
+            )
+            if search_terms:
+                terms = re.sub(r"^(?:emails?\s+)?(?:about\s+)?", "", search_terms.group(1))
+                if terms:
+                    query = f"{query} {terms}"
+
+    return {"operation": "search_gmail", "account": account, "query": query}
+
+
+def _normalize_gmail_metadata(
+    raw_input: str,
+    context: Optional[dict],
+    metadata: Optional[dict],
+) -> Optional[dict]:
+    """Preserve structured requests; otherwise add a safe search request."""
+    if isinstance(metadata, dict) and "gmail_request" in metadata:
+        return metadata
+    if isinstance(context, dict) and "gmail_request" in context:
+        normalized = dict(metadata) if isinstance(metadata, dict) else {}
+        normalized["gmail_request"] = context["gmail_request"]
+        return normalized
+
+    request = _gmail_request_from_text(raw_input)
+    if request is None:
+        return metadata
+    normalized = dict(metadata) if isinstance(metadata, dict) else {}
+    normalized["gmail_request"] = request
+    return normalized
 
 
 def dispatch_task(task: dict) -> dict:
@@ -111,6 +170,14 @@ def handle_message(
         task_metadata["metadata"] = metadata
 
     fields = classify(raw_input)
+    if fields["owner"] == "dee_gmail":
+        metadata = _normalize_gmail_metadata(raw_input, context, metadata)
+        task_metadata = {}
+        if context is not None:
+            task_metadata["context"] = context
+        if metadata is not None:
+            task_metadata["metadata"] = metadata
+
     task_id = create_task(
         raw_input=raw_input,
         metadata=task_metadata or None,

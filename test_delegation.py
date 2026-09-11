@@ -166,7 +166,7 @@ class DelegationIntegrationTests(unittest.TestCase):
             self.delegation,
             "classify",
             return_value={
-                "category": "research",
+                "category": "gmail",
                 "title": "Search Gmail",
                 "brief": "Find matching mail",
                 "owner": "dee_gmail",
@@ -176,6 +176,90 @@ class DelegationIntegrationTests(unittest.TestCase):
             outcome = self.delegation.handle_message("Search Gmail")
 
         self.assertEqual(outcome["result"], envelope)
+
+    def test_gmail_search_is_normalized_for_dee(self):
+        specialist = Mock(return_value={"ok": True, "data": []})
+        self.delegation.SPECIALISTS = {"dee_gmail": specialist}
+
+        self.delegation.handle_message("Search my personal Gmail")
+
+        request = specialist.call_args.args[0]["metadata"]["gmail_request"]
+        self.assertEqual(request, {
+            "operation": "search_gmail",
+            "account": "personal",
+            "query": "in:anywhere",
+        })
+
+    def test_gmail_last_days_search_is_normalized_for_dee(self):
+        specialist = Mock(return_value={"ok": True, "data": []})
+        self.delegation.SPECIALISTS = {"dee_gmail": specialist}
+
+        self.delegation.handle_message(
+            "Search my personal Gmail for emails from the last 7 days"
+        )
+
+        request = specialist.call_args.args[0]["metadata"]["gmail_request"]
+        self.assertEqual(request["query"], "in:anywhere newer_than:7d")
+
+    def test_gmail_sender_search_is_normalized_for_dee(self):
+        specialist = Mock(return_value={"ok": True, "data": []})
+        self.delegation.SPECIALISTS = {"dee_gmail": specialist}
+
+        self.delegation.handle_message("Find an email from Nick")
+
+        request = specialist.call_args.args[0]["metadata"]["gmail_request"]
+        self.assertEqual(request["query"], "in:anywhere from:nick")
+
+    def test_school_gmail_search_uses_school_account(self):
+        specialist = Mock(return_value={"ok": True, "data": []})
+        self.delegation.SPECIALISTS = {"dee_gmail": specialist}
+
+        self.delegation.handle_message("Search my school Gmail")
+
+        request = specialist.call_args.args[0]["metadata"]["gmail_request"]
+        self.assertEqual(request["account"], "school")
+
+    def test_structured_gmail_request_passes_through_unchanged(self):
+        specialist = Mock(return_value={"ok": True, "data": {}})
+        self.delegation.SPECIALISTS = {"dee_gmail": specialist}
+        request = {
+            "operation": "search_gmail",
+            "account": "personal",
+            "query": "from:nick",
+        }
+
+        self.delegation.handle_message("Search my Gmail", metadata={"gmail_request": request})
+
+        self.assertIs(specialist.call_args.args[0]["metadata"]["gmail_request"], request)
+
+    def test_message_id_request_from_context_passes_to_dee(self):
+        specialist = Mock(return_value={"ok": True, "data": {}})
+        self.delegation.SPECIALISTS = {"dee_gmail": specialist}
+        request = {"operation": "get_message", "account": "personal", "message_id": "m1"}
+
+        self.delegation.handle_message("Check my Gmail", context={"gmail_request": request})
+
+        self.assertEqual(specialist.call_args.args[0]["metadata"]["gmail_request"], request)
+
+    def test_thread_id_request_from_metadata_passes_to_dee(self):
+        specialist = Mock(return_value={"ok": True, "data": {}})
+        self.delegation.SPECIALISTS = {"dee_gmail": specialist}
+        request = {"operation": "get_thread", "account": "school", "thread_id": "t1"}
+
+        self.delegation.handle_message("Check my school Gmail", metadata={"gmail_request": request})
+
+        self.assertEqual(specialist.call_args.args[0]["metadata"]["gmail_request"], request)
+
+    def test_ambiguous_gmail_request_reaches_stable_adapter_error(self):
+        outcome = self.delegation.handle_message("Gmail")
+
+        self.assertEqual(outcome["result"]["error"]["code"], "invalid_request")
+
+    def test_reminder_to_email_stays_with_sheila(self):
+        outcome = self.delegation.handle_message("Remind me to email Nora tomorrow")
+
+        self.assertEqual(outcome["category"], "reminder")
+        self.assertEqual(outcome["owner"], "sheila")
 
 
 if __name__ == "__main__":
