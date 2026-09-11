@@ -25,6 +25,21 @@ class IntakeConnectionTests(unittest.TestCase):
         os.remove(self.db_path)
         self.assertFalse(os.path.exists(self.db_path))
 
+    def test_gmail_task_is_created_and_persisted(self):
+        task_id = self.intake.create_task(
+            raw_input="Search my Gmail",
+            category="gmail",
+            title="Search Gmail",
+            brief="Samuel asked to search Gmail.",
+            owner="dee_gmail",
+        )
+
+        tasks = self.intake.list_tasks()
+        self.assertEqual(len(tasks), 1)
+        self.assertEqual(tasks[0]["id"], task_id)
+        self.assertEqual(tasks[0]["category"], "gmail")
+        self.assertEqual(tasks[0]["owner"], "dee_gmail")
+
 
 if __name__ == "__main__":
     unittest.main()

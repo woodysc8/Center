@@ -19,7 +19,7 @@ from typing import Optional, Dict, List
 
 from config import DB_PATH
 
-VALID_CATEGORIES = {"finance", "travel", "research", "reminder", "unsure"}
+VALID_CATEGORIES = {"finance", "travel", "research", "gmail", "reminder", "unsure"}
 VALID_OWNERS = {"richard", "juan_whey", "dee_gmail", "sheila", "samuel", "unassigned"}
 VALID_PRIORITIES = {"low", "normal", "high"}
 VALID_STATUSES = {"new", "in_progress", "done", "dropped"}
