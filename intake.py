@@ -12,6 +12,7 @@ delegation-worthy — she still replies to Samuel normally in the same turn.
 import json
 import sqlite3
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, List
@@ -41,11 +42,19 @@ CREATE TABLE IF NOT EXISTS tasks (
 """
 
 
+@contextmanager
 def _connect():
     Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
-    conn.execute(SCHEMA)
-    return conn
+    try:
+        conn.execute(SCHEMA)
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def create_task(
