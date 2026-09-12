@@ -12,7 +12,7 @@ requires-python = ">=3.9"
 dependencies = []
 
 [tool.setuptools]
-packages = ["center", "specialists"]
+packages = ["center", "specialists", "capabilities"]
 py-modules = [
   "ceo",
   "classifier",
@@ -22,4 +22,5 @@ py-modules = [
   "juan_whey",
   "richard",
   "view_tasks",
+  "execution",
 ]

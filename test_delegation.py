@@ -1,4 +1,5 @@
 import importlib
+import importlib.util
 import json
 import os
 import tempfile
@@ -250,6 +251,10 @@ class DelegationIntegrationTests(unittest.TestCase):
 
         self.assertEqual(specialist.call_args.args[0]["metadata"]["gmail_request"], request)
 
+    @unittest.skipUnless(
+        importlib.util.find_spec("dee_klutter") is not None,
+        "requires the externally supplied dee_klutter package",
+    )
     def test_ambiguous_gmail_request_reaches_stable_adapter_error(self):
         outcome = self.delegation.handle_message("Gmail")
 

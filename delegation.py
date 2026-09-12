@@ -30,17 +30,42 @@ delegated over time.
 """
 
 import re
+from importlib import import_module
 from typing import Optional
 
 from intake import create_task, update_status
 from classifier import classify
-from specialists import dee_gmail, richard, juan_whey
+import execution
 
-SPECIALISTS = {
-    "richard": richard.handle_task,
-    "juan_whey": juan_whey.handle_task,
-    "dee_gmail": dee_gmail.handle_task,
-}
+
+class _LazySpecialistRegistry(dict):
+    """Load legacy specialists only when Center actually dispatches to one.
+
+    Calendar capabilities do not use this registry.  Keeping the names in a
+    dictionary retains the existing membership and subscription behavior,
+    while avoiding an import-time dependency on optional specialist packages
+    such as Dee-Klutter.
+    """
+
+    _MODULES = {
+        "richard": "specialists.richard",
+        "juan_whey": "specialists.juan_whey",
+        "dee_gmail": "specialists.dee_gmail",
+    }
+
+    def __init__(self) -> None:
+        super().__init__({name: None for name in self._MODULES})
+
+    def __getitem__(self, owner: str):
+        handler = super().__getitem__(owner)
+        if handler is None:
+            module = import_module(self._MODULES[owner])
+            handler = module.handle_task
+            super().__setitem__(owner, handler)
+        return handler
+
+
+SPECIALISTS = _LazySpecialistRegistry()
 
 
 def _error(code: str, message: str) -> dict:
@@ -163,6 +188,12 @@ def handle_message(
     Returns a dict describing what happened, for Sheila to use when
     composing her own reply. Does not talk to Samuel itself.
     """
+    # Sheila's typed execution requests are synchronous, bounded capability
+    # calls.  Do not put their authoritative results or injected adapters in
+    # the task database.
+    if isinstance(metadata, dict) and metadata.get("capability"):
+        return execution.execute(raw_input, context, metadata)
+
     task_metadata = {}
     if context is not None:
         task_metadata["context"] = context

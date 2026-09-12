@@ -1,9 +1,19 @@
+import importlib.util
 import unittest
 from unittest.mock import patch
 
-from specialists import dee_gmail
+
+DEE_KLUTTER_AVAILABLE = importlib.util.find_spec("dee_klutter") is not None
+if DEE_KLUTTER_AVAILABLE:
+    from specialists import dee_gmail
+else:
+    dee_gmail = None
 
 
+@unittest.skipUnless(
+    DEE_KLUTTER_AVAILABLE,
+    "requires the externally supplied dee_klutter package",
+)
 class DeeGmailSpecialistTests(unittest.TestCase):
     def task(self, request):
         return {"metadata": {"gmail_request": request}}
