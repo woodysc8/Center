@@ -3,13 +3,14 @@
 from collections.abc import Callable
 from typing import Any
 
-from . import calendar_read
+from . import calendar_read, gmail_read
 
 
 Capability = Callable[[dict[str, Any], dict[str, Any]], dict[str, Any]]
 
 _CAPABILITIES: dict[str, Capability] = {
     "calendar_read": calendar_read.execute,
+    "gmail_read": gmail_read.execute,
 }
 
 

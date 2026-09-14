@@ -26,7 +26,7 @@ class PackageImportTests(unittest.TestCase):
             wheel = next(wheel_dir.glob("center-*.whl"))
             with zipfile.ZipFile(wheel) as archive:
                 names = set(archive.namelist())
-                self.assertTrue({"config.py", "intake.py", "delegation.py", "execution.py", "capabilities/calendar_read.py", "center/__init__.py"}.issubset(names))
+                self.assertTrue({"config.py", "intake.py", "delegation.py", "execution.py", "capabilities/calendar_read.py", "capabilities/gmail_read.py", "capabilities/registry.py", "center/__init__.py"}.issubset(names))
                 metadata_name = next(name for name in names if name.endswith(".dist-info/METADATA"))
                 metadata = archive.read(metadata_name).decode("utf-8")
                 self.assertIn("Requires-Python: >=3.10", metadata)

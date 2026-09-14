@@ -11,7 +11,11 @@ from capabilities.registry import get_capability
 
 logger = logging.getLogger(__name__)
 _VALID_AUTHORITY_SCOPES = {"read", "write"}
-_REQUEST_METADATA_FIELDS = {"request_id", "capability", "authority_scope", "constraints"}
+_REQUEST_METADATA_FIELDS = {
+    "request_id", "capability", "authority_scope", "constraints", "capability_input",
+    "calendar_reader", "gmail_reader",
+}
+_INJECTED_DEPENDENCY_NAMES = {"calendar_reader", "gmail_reader"}
 
 
 def _failure(request_id: str, message: str, *, source: str = "center") -> dict[str, Any]:
@@ -61,8 +65,9 @@ def execute(raw_input: str, context: dict | None, metadata: dict | None) -> dict
             "relevant_context": context or {},
             "constraints": metadata.get("constraints", []),
             "authority_scope": authority_scope,
+            "capability_input": metadata.get("capability_input"),
         },
-        {key: value for key, value in metadata.items() if key not in _REQUEST_METADATA_FIELDS},
+        {key: metadata[key] for key in _INJECTED_DEPENDENCY_NAMES if key in metadata},
     )
     logger.info("center_execution_result request_id=%s capability=%s status=%s duration_ms=%s", request_id, capability, result["status"], round((monotonic() - started) * 1000))
     return result
