@@ -60,9 +60,49 @@ class DelegationIntegrationTests(unittest.TestCase):
         self.assertEqual(captured["task"]["context"]["travel_preferences"], "window seat")
         self.assertEqual(captured["task"]["metadata"]["conversation_id"], "abc-123")
 
-        stored_metadata = json.loads(task["metadata"])
-        self.assertEqual(stored_metadata["context"]["travel_preferences"], "window seat")
-        self.assertEqual(stored_metadata["metadata"]["conversation_id"], "abc-123")
+        self.assertIsNone(task["metadata"])
+
+    def test_legacy_context_reaches_specialist_but_never_becomes_task_memory(self):
+        captured = {}
+
+        def fake_specialist(task):
+            captured["task"] = task
+            return {"result": "done"}
+
+        self.delegation.SPECIALISTS = {"richard": fake_specialist}
+        context = {
+            "conversation_id": "conversation-example",
+            "user_profile": {"name": "Example User", "preferences": ["example"]},
+            "sam2_facts": ["Example durable memory"],
+            "conversation_history": ["Example prior conversation"],
+            "relevant_context": {"destination": "example"},
+        }
+
+        outcome = self.delegation.handle_message("Need advice on taxes", context=context)
+
+        self.assertEqual(outcome["status"], "done")
+        self.assertEqual(captured["task"]["context"], context)
+        task = self.intake.list_tasks()[0]
+        self.assertEqual(task["raw_input"], "Need advice on taxes")
+        self.assertIsNone(task["metadata"])
+        persisted = json.dumps(task)
+        for forbidden in ("sam2_facts", "conversation_history", "user_profile", "conversation-example", "Example durable memory"):
+            self.assertNotIn(forbidden, persisted)
+
+    def test_only_dee_operation_request_is_persisted_from_legacy_metadata(self):
+        self.delegation.SPECIALISTS = {"dee_gmail": Mock(return_value={"ok": True, "data": []})}
+        request = {"operation": "search_gmail", "account": "personal", "query": "from:nick"}
+
+        self.delegation.handle_message(
+            "Search my Gmail",
+            context={"sam2_facts": ["do not persist"]},
+            metadata={"gmail_request": request, "conversation_id": "do not persist"},
+        )
+
+        stored_metadata = json.loads(self.intake.list_tasks()[0]["metadata"])
+        self.assertEqual(stored_metadata, {"metadata": {"gmail_request": request}})
+        self.assertNotIn("conversation_id", json.dumps(stored_metadata))
+        self.assertNotIn("sam2_facts", json.dumps(stored_metadata))
 
     def test_task_is_in_progress_only_during_specialist_execution(self):
         observed_statuses = []

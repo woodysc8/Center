@@ -130,6 +130,22 @@ def _normalize_gmail_metadata(
     return normalized
 
 
+def _persistent_task_metadata(metadata: Optional[dict]) -> Optional[dict]:
+    """Keep only operation data required to audit or resume legacy work.
+
+    Context is intentionally execution-only: it may contain Sam 2 material,
+    profiles, or conversational state that Center must not retain.  Dee's
+    normalized Gmail request is the sole current operation-specific item that
+    needs to survive in the legacy task ledger.
+    """
+    if not isinstance(metadata, dict):
+        return None
+    gmail_request = metadata.get("gmail_request")
+    if not isinstance(gmail_request, dict):
+        return None
+    return {"metadata": {"gmail_request": gmail_request}}
+
+
 def dispatch_task(task: dict) -> dict:
     """Validate and synchronously dispatch one structured specialist task."""
     if not isinstance(task, dict):
@@ -194,24 +210,13 @@ def handle_message(
     if isinstance(metadata, dict) and metadata.get("capability"):
         return execution.execute(raw_input, context, metadata)
 
-    task_metadata = {}
-    if context is not None:
-        task_metadata["context"] = context
-    if metadata is not None:
-        task_metadata["metadata"] = metadata
-
     fields = classify(raw_input)
     if fields["owner"] == "dee_gmail":
         metadata = _normalize_gmail_metadata(raw_input, context, metadata)
-        task_metadata = {}
-        if context is not None:
-            task_metadata["context"] = context
-        if metadata is not None:
-            task_metadata["metadata"] = metadata
 
     task_id = create_task(
         raw_input=raw_input,
-        metadata=task_metadata or None,
+        metadata=_persistent_task_metadata(metadata),
         **fields,
     )
 

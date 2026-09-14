@@ -7,7 +7,7 @@ name = "center"
 version = "0.1.0"
 description = "Center delegation package"
 readme = "README (1).md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 dependencies = []
 
