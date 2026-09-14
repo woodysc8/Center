@@ -36,6 +36,7 @@ from typing import Optional
 from intake import create_task, update_status
 from classifier import classify
 import execution
+import specialist_delegation
 
 
 class _LazySpecialistRegistry(dict):
@@ -209,6 +210,15 @@ def handle_message(
     # the task database.
     if isinstance(metadata, dict) and metadata.get("capability"):
         return execution.execute(raw_input, context, metadata)
+    if isinstance(metadata, dict) and metadata.get("specialist"):
+        return specialist_delegation.execute({
+            "request_id": metadata.get("request_id"),
+            "specialist": metadata.get("specialist"),
+            "task": raw_input,
+            "relevant_context": context,
+            "constraints": metadata.get("constraints"),
+            "authority_scope": metadata.get("authority_scope"),
+        })
 
     fields = classify(raw_input)
     if fields["owner"] == "dee_gmail":

@@ -26,14 +26,14 @@ class PackageImportTests(unittest.TestCase):
             wheel = next(wheel_dir.glob("center-*.whl"))
             with zipfile.ZipFile(wheel) as archive:
                 names = set(archive.namelist())
-                self.assertTrue({"config.py", "intake.py", "delegation.py", "execution.py", "capabilities/calendar_read.py", "capabilities/gmail_read.py", "capabilities/registry.py", "center/__init__.py"}.issubset(names))
+                self.assertTrue({"config.py", "intake.py", "delegation.py", "execution.py", "specialist_delegation.py", "capabilities/calendar_read.py", "capabilities/gmail_read.py", "capabilities/registry.py", "center/__init__.py"}.issubset(names))
                 metadata_name = next(name for name in names if name.endswith(".dist-info/METADATA"))
                 metadata = archive.read(metadata_name).decode("utf-8")
                 self.assertIn("Requires-Python: >=3.10", metadata)
                 archive.extractall(temporary_path / "runtime")
 
             imported = subprocess.run(
-                [sys.executable, "-I", "-c", "import sys; sys.path.insert(0, sys.argv[1]); import execution, delegation; from capabilities import calendar_read; import center; print('ok')", str(temporary_path / "runtime")],
+                [sys.executable, "-I", "-c", "import sys; sys.path.insert(0, sys.argv[1]); import execution, delegation, specialist_delegation; from capabilities import calendar_read; import center; print('ok')", str(temporary_path / "runtime")],
                 cwd=temporary_path,
                 text=True,
                 capture_output=True,

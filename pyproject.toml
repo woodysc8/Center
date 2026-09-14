@@ -23,4 +23,5 @@ py-modules = [
   "richard",
   "view_tasks",
   "execution",
+  "specialist_delegation",
 ]
