@@ -25,7 +25,7 @@ def _failure(request_id: str, message: str) -> dict[str, Any]:
     }
 
 
-def execute(request: dict[str, Any], reader: CalendarReader) -> dict[str, Any]:
+def execute(request: dict[str, Any], dependencies: dict[str, Any]) -> dict[str, Any]:
     """Read tomorrow's events through an injected authoritative adapter.
 
     Center deliberately receives a callable boundary instead of OAuth
@@ -34,7 +34,10 @@ def execute(request: dict[str, Any], reader: CalendarReader) -> dict[str, Any]:
     request_id = str(request.get("request_id", ""))
     started = monotonic()
     logger.info("capability_started request_id=%s capability=calendar_read", request_id)
+    if request.get("authority_scope") != "read":
+        return _failure(request_id, "calendar_read accepts read authority only.")
     try:
+        reader = dependencies.get("calendar_reader") if isinstance(dependencies, dict) else None
         if not callable(reader):
             raise ValueError("calendar_read requires an internal calendar reader")
         zone = ZoneInfo("America/New_York")

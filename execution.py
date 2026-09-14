@@ -6,10 +6,12 @@ import logging
 from time import monotonic
 from typing import Any
 
-from capabilities import calendar_read
+from capabilities.registry import get_capability
 
 
 logger = logging.getLogger(__name__)
+_VALID_AUTHORITY_SCOPES = {"read", "write"}
+_REQUEST_METADATA_FIELDS = {"request_id", "capability", "authority_scope", "constraints"}
 
 
 def _failure(request_id: str, message: str, *, source: str = "center") -> dict[str, Any]:
@@ -42,17 +44,25 @@ def execute(raw_input: str, context: dict | None, metadata: dict | None) -> dict
         return _failure(request_id, "ExecutionRequest requires task text.")
     if context is not None and not isinstance(context, dict):
         return _failure(request_id, "ExecutionRequest relevant_context must be an object.")
-    if metadata.get("authority_scope", "read") != "read":
-        return _failure(request_id, "calendar_read accepts read authority only.")
+    authority_scope = metadata.get("authority_scope")
+    if not isinstance(authority_scope, str) or authority_scope not in _VALID_AUTHORITY_SCOPES:
+        return _failure(request_id, "ExecutionRequest requires a valid authority_scope.")
 
     logger.info("center_request_received request_id=%s capability=%s", request_id, capability)
-    if capability != "calendar_read":
+    handler = get_capability(capability)
+    if handler is None:
         logger.info("capability_selected request_id=%s capability=%s status=unsupported", request_id, capability)
         return _failure(request_id, f"Unsupported capability: {capability}.")
-    logger.info("capability_selected request_id=%s capability=calendar_read", request_id)
-    result = calendar_read.execute(
-        {"request_id": request_id, "task": raw_input, "relevant_context": context or {}, "constraints": metadata.get("constraints", [])},
-        metadata.get("calendar_reader"),
+    logger.info("capability_selected request_id=%s capability=%s", request_id, capability)
+    result = handler(
+        {
+            "request_id": request_id,
+            "task": raw_input,
+            "relevant_context": context or {},
+            "constraints": metadata.get("constraints", []),
+            "authority_scope": authority_scope,
+        },
+        {key: value for key, value in metadata.items() if key not in _REQUEST_METADATA_FIELDS},
     )
     logger.info("center_execution_result request_id=%s capability=%s status=%s duration_ms=%s", request_id, capability, result["status"], round((monotonic() - started) * 1000))
     return result

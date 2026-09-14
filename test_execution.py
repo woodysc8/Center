@@ -26,6 +26,36 @@ class CenterExecutionTests(unittest.TestCase):
         self.assertIsNone(result["durable_memory_candidate"])
         reader.assert_called_once()
 
+    def test_calendar_read_is_registered_and_resolved_by_generic_executor(self):
+        from capabilities import calendar_read
+        from capabilities.registry import get_capability
+
+        self.assertIs(get_capability("calendar_read"), calendar_read.execute)
+        with patch.object(self.execution, "get_capability", wraps=get_capability) as resolve:
+            result = self.execution.execute(
+                "Check my calendar for tomorrow.", {},
+                {**self.request, "calendar_reader": Mock(return_value=[])},
+            )
+        resolve.assert_called_once_with("calendar_read")
+        self.assertEqual(result["status"], "succeeded")
+
+    def test_generic_executor_leaves_valid_scope_policy_to_capability(self):
+        received = {}
+
+        def write_capability(request, dependencies):
+            received["request"] = request
+            received["dependencies"] = dependencies
+            return {
+                "request_id": request["request_id"], "status": "succeeded", "result": {},
+                "authoritative_source": "center", "side_effects": [], "errors": [],
+                "durable_memory_candidate": None,
+            }
+
+        with patch.object(self.execution, "get_capability", return_value=write_capability):
+            result = self.execution.execute("Do bounded work", {}, {**self.request, "capability": "future_write", "authority_scope": "write"})
+        self.assertEqual(result["status"], "succeeded")
+        self.assertEqual(received["request"]["authority_scope"], "write")
+
     def test_delegation_import_does_not_require_dee_klutter(self):
         """Calendar-capability imports must not pull in optional specialists."""
         completed = subprocess.run(
@@ -51,9 +81,12 @@ class CenterExecutionTests(unittest.TestCase):
 
     def test_malformed_and_unsupported_requests_fail_structurally(self):
         missing = self.execution.execute("Check my calendar", {}, {"capability": "calendar_read"})
+        missing_scope = self.execution.execute("Check my calendar", {}, {"request_id": "req-missing-scope", "capability": "calendar_read"})
         unsupported = self.execution.execute("Do something", {}, {**self.request, "capability": "calendar_write"})
         self.assertEqual(missing["status"], "failed")
         self.assertIn("request_id", missing["errors"][0])
+        self.assertEqual(missing_scope["status"], "failed")
+        self.assertIn("authority_scope", missing_scope["errors"][0])
         self.assertEqual(unsupported["status"], "failed")
         self.assertIn("Unsupported", unsupported["errors"][0])
 
@@ -78,7 +111,11 @@ class CenterExecutionTests(unittest.TestCase):
         with patch.object(delegation, "create_task") as create_task:
             result = delegation.handle_message(
                 "Check my calendar for tomorrow.",
-                context={},
+                context={
+                    "sam2_facts": ["never persist"],
+                    "user_profile": {"name": "Example"},
+                    "conversation_history": ["never persist"],
+                },
                 metadata={**self.request, "calendar_reader": Mock(return_value=[])},
             )
         self.assertEqual(result["status"], "succeeded")
